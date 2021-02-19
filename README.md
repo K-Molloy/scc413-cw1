@@ -1,6 +1,8 @@
 # scc413-cw1
 
-Kieran Molloy submission to SCC413 Computer Vision coursework
+github : https://github.com/K-Molloy/scc413-cw1  
+
+Kieran Molloy submission to SCC413 Computer Vision coursework  
 
 ## Project Outline
 analysis -> compilation of results in R, and production of graphs   
