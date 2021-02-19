@@ -1,0 +1,375 @@
+---
+title: "scc413 cw analysis"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(ggplot2)
+library(plyr)
+library(tidyverse)
+require(gridExtra)
+library(reshape2)
+```
+
+## Best Model Only
+
+```{r}
+datasets = c('ecg1', 'ecg200', 'ecg5000', 'ecgfivedays')
+runs = c(1, 2, 3)
+models = c('mlp', 'encoder', 'mcnn','resnet', 'tlenet')
+
+all_models = data.frame(dataset = factor(),
+                        model = factor(),
+                        run = factor(),
+                        precision	 = double(),
+                        accuracy = double(),
+                        recall = double(),
+                        duration = double()
+)
+
+for (dataset in datasets){
+  for(run in runs){
+    for (model in models){
+
+      
+      filename = paste(dataset, run, model, 'df_metrics.csv', sep="/")
+      model_metrics = read.csv(file = filename, header = TRUE)
+      
+      
+      full_frame = cbind(dataset, model, run, model_metrics)
+      
+      all_models = rbind(all_models, full_frame)
+    }
+  }
+}
+
+```
+
+
+```{r}
+
+all_models %>%
+  mutate(dataset = paste(dataset, run, sep="-")) %>%
+  select(c(dataset, model, accuracy)) %>%
+  write.csv('all_models_all_runs.csv')
+
+all_models %>%
+  write.csv('all_models.csv')
+
+all_models %>%
+  filter(dataset=='ecg1') %>%
+  mutate(dataset = paste(dataset, run, sep="-")) %>%
+  select(c(dataset, model, accuracy)) %>%
+  write.csv('all_models_ecg1.csv')
+
+all_models %>%
+  filter(dataset=='ecg200') %>%
+  mutate(dataset = paste(dataset, run, sep="-")) %>%
+  select(c(dataset, model, accuracy)) %>%
+  write.csv('all_models_ecg200.csv')
+
+all_models %>%
+  filter(dataset=='ecg5000') %>%
+  mutate(dataset = paste(dataset, run, sep="-")) %>%
+  select(c(dataset, model, accuracy)) %>%
+  write.csv('all_models_ecg5000.csv')
+
+all_models %>%
+  filter(dataset=='ecgfivedays') %>%
+  mutate(dataset = paste(dataset, run, sep="-")) %>%
+  select(c(dataset, model, accuracy)) %>%
+  write.csv('all_models_ecgfivedays.csv')
+```
+
+## Best Models and Metrics Version
+```{r}
+datasets = c('ecg1', 'ecg200', 'ecg5000', 'ecgfivedays')
+runs = c(1, 2, 3)
+models = c('mlp', 'encoder', 'resnet', 'tlenet')
+
+all_models = data.frame(dataset = factor(),
+                        model = factor(),
+                        run = factor(),
+                        best_model_train_loss = double(),
+                        best_model_val_loss	= double(),
+                        best_model_train_acc = double(),
+                        best_model_val_acc = double(),
+                        best_model_learning_rate = double(),
+                        best_model_nb_epoch = double(),
+                        precision	 = double(),
+                        accuracy = double(),
+                        recall = double(),
+                        duration = double()
+)
+
+for (dataset in datasets){
+  for(run in runs){
+    for (model in models){
+
+      filename = paste(dataset, run, model, 'df_best_model.csv', sep="/")
+      model_run = read.csv(file = filename, header = TRUE)
+      
+      filename = paste(dataset, run, model, 'df_metrics.csv', sep="/")
+      model_metrics = read.csv(file = filename, header = TRUE)
+      
+      
+      full_frame = cbind(dataset, model, run, model_run, model_metrics)
+      
+      all_models = rbind(all_models, full_frame)
+    }
+  }
+}
+
+all_models %>%
+  write.csv('all_models_metrics.csv')
+```
+
+
+```{r}
+
+all_models %>%
+  mutate(dataset = paste(dataset, run, sep="-")) %>%
+  select(c(dataset, model, accuracy)) %>%
+  write.csv('all_models_all_runs.csv')
+
+all_models %>%
+  write.csv('all_models.csv')
+
+all_models %>%
+  filter(dataset=='ecg1') %>%
+  mutate(model = paste(model, run, sep="-")) %>%
+  select(c(dataset, model, accuracy)) %>%
+  write.csv('all_models_ecg1.csv')
+```
+
+
+
+```{r}
+head(all_models)
+```
+
+```{r}
+data_summary <- function(data, varname, groupnames){
+  require(plyr)
+  summary_func <- function(x, col){
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE))
+  }
+  data_sum<-ddply(data, groupnames, .fun=summary_func,
+                  varname)
+  data_sum <- rename(data_sum, c("mean" = varname))
+ return(data_sum)
+}
+```
+
+
+## Accuracy Plots
+
+```{r}
+all_models %>%
+  filter(dataset == "ecg1") %>%
+  select(model, run, precision, accuracy, recall) %>%
+  pivot_longer(-c(run, model), values_to = "value", names_to = "property") %>%
+  data_summary(varname="value", 
+                groupnames=c("property", "model")) %>%
+  ggplot(aes(x=property, y=value, group = model, shape=model, linetype=model))+ 
+    geom_errorbar(aes(ymin=value-sd, ymax=value+sd), width=.1, 
+    position=position_dodge(0.0)) +
+    geom_line() +
+    geom_point()+
+    labs(title="ECG1 Accuracy Plot",x="Classification Metric", y = "Score")+
+    theme_classic()
+
+ggsave("ecg1_accuracy_plot.png")
+  
+```
+```{r}
+all_models %>%
+  filter(dataset == "ecg200") %>%
+  select(model, run, precision, accuracy, recall) %>%
+  pivot_longer(-c(run, model), values_to = "value", names_to = "property") %>%
+  data_summary(varname="value", 
+                groupnames=c("property", "model")) %>%
+  ggplot(aes(x=property, y=value, group = model, shape=model, linetype=model))+ 
+    geom_errorbar(aes(ymin=value-sd, ymax=value+sd), width=.1, 
+    position=position_dodge(0.0)) +
+    geom_line() +
+    geom_point()+
+    labs(title="ECG_200 Accuracy Plot",x="Classification Metric", y = "Score")+
+    theme_classic()
+
+ggsave("ecg200_accuracy_plot.png")
+  
+```
+```{r}
+all_models %>%
+  filter(dataset == "ecg5000") %>%
+  select(model, run, precision, accuracy, recall) %>%
+  pivot_longer(-c(run, model), values_to = "value", names_to = "property") %>%
+  data_summary(varname="value", 
+                groupnames=c("property", "model")) %>%
+  ggplot(aes(x=property, y=value, group = model, shape=model, linetype=model))+ 
+    geom_errorbar(aes(ymin=value-sd, ymax=value+sd), width=.1, 
+    position=position_dodge(0.0)) +
+    geom_line() +
+    geom_point()+
+    labs(title="ECG_5000 Accuracy Plot",x="Classification Metric", y = "Score")+
+    theme_classic()
+  
+ggsave("ecg5000_accuracy_plot.png")
+```
+
+```{r}
+all_models %>%
+  filter(dataset == "ecgfivedays") %>%
+  select(model, run, precision, accuracy, recall) %>%
+  pivot_longer(-c(run, model), values_to = "value", names_to = "property") %>%
+  data_summary(varname="value", 
+                groupnames=c("property", "model")) %>%
+  ggplot(aes(x=property, y=value, group = model, shape=model, linetype=model))+ 
+    geom_errorbar(aes(ymin=value-sd, ymax=value+sd), width=.1, 
+    position=position_dodge(0.0)) +
+    geom_line() +
+    geom_point()+
+    labs(title="ECG_five_days Accuracy Plot",x="Classification Metric", y = "Score")+
+    theme_classic()
+
+ggsave("ecgfivedays_accuracy_plot.png")
+  
+```
+
+
+## Model History Plots
+
+```{r}
+
+# datasets = c('ecg1', 'ecg200', 'ecg5000', 'ecgfivedays')
+datasets = c('ecg1')
+runs = c(1, 2, 3)
+models = c('mlp', 'encoder', 'resnet', 'tlenet')
+epochs=500
+
+dmr = data.frame(dataset = factor(),
+                 model = factor(),
+                 run = factor(),
+                 epoch = integer(),
+                 stringsAsFactors = TRUE)
+
+for (dataset in datasets){
+  for(model in models){
+    
+    metrics = data.frame(dataset = factor(),
+                      model = factor(),
+                      run = factor(),
+                      epoch = double(),
+                      loss = double(),
+                      accuracy = double(),
+                      val_loss = double(),
+                      val_accuracy = double())
+            
+    for (run in runs){
+
+      filename = paste(dataset, run, model, 'history.csv', sep="/")
+      model_history = read.csv(file = filename, header = TRUE)
+      
+      for (epoch in 1:epochs){
+        dmr = rbind.data.frame(dmr, cbind.data.frame(dataset, model, run, epoch))
+      }
+      
+      current_loss = cbind.data.frame(dmr, model_history)
+      metrics = rbind.data.frame(metrics, current_loss)
+      
+    }
+  }
+}
+```
+
+
+```{r}
+metrics
+```
+
+```{r}
+metrics %>%
+  filter(dataset == "ecg1") %>%
+  filter(run == 1) %>%
+  select(c(model, epoch, loss, val_loss)) %>%
+  pivot_longer(-c(model, epoch), values_to = "value", names_to = "property") %>%
+
+  ggplot(aes(x=epoch, y=value, colour=property, linetype=property)) + 
+    geom_line() + 
+    facet_wrap(~ model) +
+    labs(title="ECG1 Loss Plot",x="Epochs", y = "Loss")
+
+ggsave("ecg1_loss_plot.png")
+
+metrics %>%
+  filter(dataset == "ecg1") %>%
+  select(c(model, run, epoch, loss)) %>%
+  data_summary(varname="loss", 
+                groupnames=c("epoch", "model")) %>%
+  ggplot(aes(x=epoch, y=loss, ymin=loss-sd, ymax=loss+sd, fill=model, linetype=model)) + 
+    geom_line() + 
+    geom_ribbon(alpha=0.5) + 
+    labs(title="ECG1 Loss Plot (zoomed into [0, 0, 10, 0.075])",x="Epochs", y = "Accuracy")+
+    facet_wrap(~ model) +
+    coord_cartesian(ylim = c(0.0, 0.075), xlim=c(0, 10))
+
+ggsave("ecg1_loss_plot_zoomed.png")
+```
+
+```{r}
+acc1 = metrics %>%
+  filter(dataset == "ecg1") %>%
+  select(c(model, run, epoch, accuracy)) %>%
+  data_summary(varname="accuracy", 
+                groupnames=c("epoch", "model")) %>%
+  ggplot(aes(x=epoch, y=accuracy, ymin=accuracy-sd, ymax=accuracy+sd, fill=model, linetype=model)) + 
+    geom_line() + 
+    geom_ribbon(alpha=0.5) + 
+    labs(title="ECG1 Accuracy Plot",x="Epochs", y = "Accuracy")+
+    theme_classic()
+
+acc2 = metrics %>%
+  filter(dataset == "ecg1") %>%
+  select(c(model, run, epoch, accuracy)) %>%
+  data_summary(varname="accuracy", 
+                groupnames=c("epoch", "model")) %>%
+  ggplot(aes(x=epoch, y=accuracy, ymin=accuracy-sd, ymax=accuracy+sd, fill=model, linetype=model)) + 
+    geom_line() + 
+    geom_ribbon(alpha=0.5) + 
+    labs(x="Epochs", y = "Accuracy")+
+    theme_classic() +
+    coord_cartesian(ylim = c(0.999, 1.00005), xlim=c(15, 50))
+
+grid.arrange(arrangeGrob(acc1, acc2,
+                         heights = c(0.3, 0.7)),
+             ncol = 2)
+
+ggsave("ecg1_accuracy_multi_plot.png")
+```
+
+```{r}
+metrics$model = as.factor(metrics$model)
+metrics %>%
+  filter(dataset == "ecg1") %>%
+  filter(run == 1) %>%
+  select(-c(dataset, run)) %>%
+  pivot_longer(-c(model, epoch), values_to = "value", names_to = "property") %>%
+  ggplot(aes(x=epoch, y=value)) + 
+    geom_line() + 
+    labs(x="Epochs", y = "Metric Value") +
+    facet_grid(vars(model, property), scales='free_y')
+
+ggsave("ecg1_metrics.png")
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
